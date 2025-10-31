@@ -3,7 +3,9 @@ client/node_modules/
 server/node_modules/
 
 # Build outputs
-client/dist/
+# Allow committing the built client for deployment use-cases
+# (If you don't want this later, remove the exception and delete the folder from git)
+!client/dist/
 
 # Env files
 server/.env
