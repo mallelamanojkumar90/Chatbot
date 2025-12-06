@@ -1,31 +1,46 @@
 const express = require('express');
-const { createOpenAIClient } = require('../openaiClient');
+const langchainService = require('../services/langchainService');
 
 const router = express.Router();
 
-// Simple non-streaming chat completion
+// Get available models
+router.get('/models', (req, res) => {
+  try {
+    const models = langchainService.getAvailableModels();
+    res.json({ models });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get models' });
+  }
+});
+
+// Chat completion with LangChain
 router.post('/', async (req, res) => {
   try {
-    const { messages, model } = req.body || {};
+    const { messages, model, conversationId } = req.body || {};
+    
     if (!Array.isArray(messages)) {
       return res.status(400).json({ error: 'messages must be an array' });
     }
 
-    const openai = createOpenAIClient();
-    const response = await openai.chat.completions.create({
-      model: model || 'gpt-4o-mini',
-      messages,
-      temperature: 0.7
-    });
-
-    const choice = response.choices?.[0]?.message || { role: 'assistant', content: '' };
-    res.json({ message: choice });
+    const selectedModel = model || 'gpt-4o-mini';
+    
+    // Use LangChain service
+    const response = await langchainService.chat(
+      messages, 
+      selectedModel, 
+      0.7,
+      conversationId
+    );
+    
+    res.json({ message: response });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to generate response' });
+    console.error('Chat error:', err);
+    res.status(500).json({ 
+      error: err.message || 'Failed to generate response' 
+    });
   }
 });
 
 module.exports = router;
-
 

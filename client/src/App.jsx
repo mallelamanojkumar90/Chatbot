@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import ChatWindow from './components/ChatWindow.jsx'
 import MessageInput from './components/MessageInput.jsx'
+import ModelSelector from './components/ModelSelector.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import { loadConversations, saveConversations } from './storage.js'
 
@@ -8,6 +9,8 @@ export default function App() {
   const [conversations, setConversations] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [availableModels, setAvailableModels] = useState([])
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini')
 
   const apiBase = useMemo(() => {
     return import.meta.env.VITE_API_BASE || 'http://localhost:3001'
@@ -30,6 +33,26 @@ export default function App() {
     saveConversations(conversations, selectedId)
   }, [conversations, selectedId])
 
+  // Fetch available models
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const response = await fetch(`${apiBase}/api/chat/models`)
+        const data = await response.json()
+        if (data.models && data.models.length > 0) {
+          setAvailableModels(data.models)
+          // Set default model to first available
+          setSelectedModel(data.models[0].id)
+        }
+      } catch (err) {
+        console.error('Failed to fetch models:', err)
+        // Fallback to default
+        setAvailableModels([{ id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI' }])
+      }
+    }
+    fetchModels()
+  }, [apiBase])
+
   function getActive() {
     return conversations.find(c => c.id === selectedId)
   }
@@ -50,7 +73,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: next.map(({ role, content }) => ({ role, content })),
-          model: 'gpt-4o-mini'
+          model: selectedModel,
+          conversationId: selectedId // Send conversation ID for LangChain memory
         })
       })
       const data = await response.json()
@@ -108,7 +132,14 @@ export default function App() {
       </aside>
       <section className="app-content">
         <header className="app-header">
-          <div className="title">ChatGPT Clone</div>
+          <div className="title">AI Chat</div>
+          {availableModels.length > 0 && (
+            <ModelSelector
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+              models={availableModels}
+            />
+          )}
         </header>
         <main className="app-main">
           <ChatWindow
